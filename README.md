@@ -61,7 +61,144 @@ SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 SER_MODEL_DIR=outputs/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 ```
 
-### All training runs
+---
+
+## How to load and use the model (for anyone)
+
+You do **not** need the training data or local checkpoints. The model downloads
+automatically from Hugging Face the first time you use it (~361 MB).
+
+**Model page:** https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized
+
+### 1. Install dependencies
+
+```bash
+git clone https://github.com/sbhardwaj1304/Speech-Emotion-Recognition.git
+cd Speech-Emotion-Recognition/ser_wav2vec2_ravdess
+pip install -r requirements.txt
+```
+
+Minimum packages if you only want inference (no training):
+
+```bash
+pip install torch transformers librosa soundfile
+```
+
+### 2. Load the model from Hugging Face
+
+```python
+import torch
+from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
+
+MODEL_ID = "sbh013/wav2vec2-ser-ravdess-optimized"
+
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(MODEL_ID)
+model = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
+model.eval()
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+
+# Labels the model predicts
+print(model.config.id2label)
+# {0: 'angry', 1: 'calm', 2: 'disgust', 3: 'fearful',
+#  4: 'happy', 5: 'neutral', 6: 'sad', 7: 'surprised'}
+```
+
+Weights are cached after first download at `~/.cache/huggingface/hub/`.
+
+### 3. Run inference on an audio file
+
+Audio must be **mono, 16 kHz** (the script resamples automatically if needed).
+
+```python
+import librosa
+import numpy as np
+import torch
+
+def predict_emotion(audio_path: str) -> dict:
+    """Return {emotion: probability} for a .wav file."""
+    waveform, sr = librosa.load(audio_path, sr=16000, mono=True)
+
+    inputs = feature_extractor(
+        waveform,
+        sampling_rate=16000,
+        return_tensors="pt",
+        padding=True,
+    )
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        logits = model(**inputs).logits
+        probs = torch.softmax(logits, dim=-1).squeeze().cpu().numpy()
+
+    id2label = model.config.id2label
+    return {id2label[i]: float(probs[i]) for i in range(len(probs))}
+
+
+# Example
+result = predict_emotion("my_speech.wav")
+top_emotion = max(result, key=result.get)
+print(f"Predicted: {top_emotion} ({result[top_emotion]:.1%})")
+print(result)
+```
+
+### 4. Run the Gradio web demo
+
+Record from your microphone or upload a `.wav` file:
+
+```bash
+cd ser_wav2vec2_ravdess
+pip install gradio
+SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
+```
+
+Open the URL printed in the terminal (usually `http://127.0.0.1:7860`).
+
+### 5. Use in your own Python app / API
+
+```python
+# After loading model + feature_extractor (step 2):
+import numpy as np
+
+def predict_from_array(waveform: np.ndarray, sample_rate: int = 16000) -> str:
+    """Pass a numpy float32 mono array; returns top emotion label."""
+    if sample_rate != 16000:
+        waveform = librosa.resample(waveform, orig_sr=sample_rate, target_sr=16000)
+
+    inputs = feature_extractor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        probs = torch.softmax(model(**inputs).logits, dim=-1).squeeze().cpu().numpy()
+
+    id2label = model.config.id2label
+    scores = {id2label[i]: float(probs[i]) for i in range(len(probs))}
+    return max(scores, key=scores.get)
+```
+
+### 6. Download weights manually (optional)
+
+```bash
+pip install huggingface_hub
+huggingface-cli download sbh013/wav2vec2-ser-ravdess-optimized --local-dir ./my-model
+```
+
+Then load from the local folder:
+
+```python
+model = Wav2Vec2ForSequenceClassification.from_pretrained("./my-model")
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
+```
+
+### Tips for best results
+
+- Use **clean speech** clips of 1–5 seconds (model was trained on short RAVDESS utterances)
+- Works best on **English speech** (wav2vec2-base-960h is English-pretrained)
+- The model predicts **how the speech sounds emotionally**, not the semantic meaning of words
+- 68.3% accuracy is on held-out RAVDESS speakers — real-world mic quality may differ
+
+---
 
 | Run | Local folder | HF Hub | Test acc | Status |
 |-----|--------------|--------|----------|--------|

@@ -23,7 +23,83 @@ model = Wav2Vec2ForSequenceClassification.from_pretrained(model_dir)
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_dir)
 ```
 
-### Local checkpoints (on training server)
+---
+
+## How anyone can load and use the model
+
+No training data or local checkpoints needed. Weights download from Hugging Face
+on first use (~361 MB, cached at `~/.cache/huggingface/hub/`).
+
+**Model:** https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized
+
+### Install
+
+```bash
+git clone https://github.com/sbhardwaj1304/Speech-Emotion-Recognition.git
+cd Speech-Emotion-Recognition/ser_wav2vec2_ravdess
+pip install torch transformers librosa soundfile gradio
+```
+
+### Load from Hugging Face
+
+```python
+import torch
+from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
+
+MODEL_ID = "sbh013/wav2vec2-ser-ravdess-optimized"
+
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(MODEL_ID)
+model = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
+model.eval()
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+```
+
+### Predict emotion from a .wav file
+
+```python
+import librosa
+import torch
+
+def predict_emotion(audio_path: str) -> dict:
+    waveform, _ = librosa.load(audio_path, sr=16000, mono=True)
+    inputs = feature_extractor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    with torch.no_grad():
+        probs = torch.softmax(model(**inputs).logits, dim=-1).squeeze().cpu().numpy()
+    id2label = model.config.id2label
+    return {id2label[i]: float(probs[i]) for i in range(len(probs))}
+
+result = predict_emotion("speech.wav")
+print(max(result, key=result.get), result)
+```
+
+**Labels:** angry, calm, disgust, fearful, happy, neutral, sad, surprised
+
+### Gradio demo (mic or upload)
+
+```bash
+SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
+```
+
+### Download weights to disk (optional)
+
+```bash
+pip install huggingface_hub
+huggingface-cli download sbh013/wav2vec2-ser-ravdess-optimized --local-dir ./my-model
+```
+
+```python
+model = Wav2Vec2ForSequenceClassification.from_pretrained("./my-model")
+```
+
+### Tips
+
+- Use 1–5 second mono speech clips at 16 kHz
+- English speech works best (wav2vec2-base-960h pretraining)
+- Predicts vocal emotion, not word meaning
+
+---
 
 | Folder | Backbone | Epochs | Test acc | Notes |
 |--------|----------|--------|----------|-------|
