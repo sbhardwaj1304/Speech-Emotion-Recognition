@@ -1,0 +1,41 @@
+# Archives (too large for GitHub)
+*.zip
+
+# Legacy notebook at repo root (copy lives in notebooks/)
+/Untitled2.ipynb
+
+# RAVDESS audio (~350 MB) — download separately; see README
+RAVDESS_DATA/ravdess/
+RAVDESS_DATA/metadata.csv
+
+# Model checkpoints (~21 GB) — too large for GitHub; use Hugging Face Hub
+ser_wav2vec2_ravdess/outputs/
+*.safetensors
+**/model.safetensors
+**/pytorch_model.bin
+**/training_args.bin
+
+# Python env & caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Training logs
+*.log
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets — never commit tokens or keys
+.env
+.env.*
+*.pem

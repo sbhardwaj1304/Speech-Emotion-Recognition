@@ -1,0 +1,57 @@
+"""
+Model construction: wav2vec2 adapted for 8-way emotion classification.
+"""
+
+from transformers import Wav2Vec2Config, Wav2Vec2ForSequenceClassification
+
+from . import config
+
+
+def build_model(
+    model_checkpoint: str = config.MODEL_CHECKPOINT,
+    freeze_feature_encoder: bool = True,
+) -> Wav2Vec2ForSequenceClassification:
+    model_config = Wav2Vec2Config.from_pretrained(
+        model_checkpoint,
+        num_labels=config.NUM_LABELS,
+        label2id=config.LABEL2ID,
+        id2label=config.ID2LABEL,
+        finetuning_task="audio-classification",
+        mask_time_prob=0.0,
+        mask_feature_prob=0.0,
+    )
+
+    model = Wav2Vec2ForSequenceClassification.from_pretrained(
+        model_checkpoint,
+        config=model_config,
+        dtype="float32",
+    )
+
+    if freeze_feature_encoder:
+        model.freeze_feature_encoder()
+
+    if hasattr(model.wav2vec2, "masked_spec_embed"):
+        model.wav2vec2.masked_spec_embed.requires_grad_(False)
+
+    return model
+
+
+def set_training_stage(model: Wav2Vec2ForSequenceClassification, stage: str) -> None:
+    """
+    stage='head_only'  -> train classifier/projector only (stage 1 warmup)
+    stage='full'       -> also unfreeze wav2vec2 transformer (stage 2+)
+    """
+    model.freeze_feature_encoder()
+
+    if hasattr(model.wav2vec2, "masked_spec_embed"):
+        model.wav2vec2.masked_spec_embed.requires_grad_(False)
+
+    for param in model.wav2vec2.encoder.parameters():
+        param.requires_grad = stage == "full"
+
+    for param in model.classifier.parameters():
+        param.requires_grad = True
+
+    if hasattr(model, "projector") and model.projector is not None:
+        for param in model.projector.parameters():
+            param.requires_grad = True
