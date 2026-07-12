@@ -1,283 +1,179 @@
-# Speech Emotion Recognition — wav2vec2 + RAVDESS
+# ser_wav2vec2_ravdess — Technical Documentation
 
-Fine-tunes Hugging Face wav2vec2 for **8-class speech emotion recognition** on the
-[RAVDESS](https://zenodo.org/record/1188976) dataset. Uses a speaker-independent
-train/val/test split, three-stage fine-tuning, class-weighted loss, and a Gradio
-demo.
+Speaker-independent speech emotion recognition fine-tuning wav2vec2 on RAVDESS.
 
-**Emotions:** `neutral`, `calm`, `happy`, `sad`, `angry`, `fearful`, `disgust`, `surprised`
+**Parent repo:** https://github.com/sbhardwaj1304/Speech-Emotion-Recognition  
+**Best model:** https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized (**68.3%** test accuracy)
 
 ---
 
-## Quick start (this server)
+## Model weights
 
-```bash
-cd /sensei-fs-3/users/vkhazanchi/reranker-diksha/personal/ser/ser_wav2vec2_ravdess
+### Published (Hugging Face)
 
-# 1) Train on GPU 0 (recommended)
-bash run_train.sh
-
-# 2) Or run Python directly
-CUDA_VISIBLE_DEVICES=0 /opt/conda/bin/python run_training.py --skip-prepare
-
-# 3) Demo with the best finished model
-/opt/conda/bin/python app/gradio_app.py
-
-# 4) Monitor training
-tail -f training.log
-```
-
-Python interpreter on this machine: `/opt/conda/bin/python`
-
----
-
-## Project layout
-
-```
-personal/ser/
-├── RAVDESS_DATA/                    # dataset (audio + metadata)
-│   ├── ravdess/                     # 1,440 .wav files (24 actors)
-│   ├── metadata_local.csv           # ✅ use this — correct local paths + labels
-│   └── metadata.csv                 # ❌ old Colab export — wrong paths/labels
-│
-├── Untitled2.ipynb                  # legacy Colab notebook (reference only)
-│
-└── ser_wav2vec2_ravdess/            # main project
-    ├── README.md
-    ├── requirements.txt
-    ├── run_training.py              # local entry point
-    ├── run_train.sh                 # single-GPU launcher (default)
-    ├── run_multigpu.sh              # optional multi-GPU DDP
-    ├── scripts/prepare_data.py      # rebuild metadata_local.csv
-    ├── src/
-    │   ├── config.py                # paths, hyperparameters, label maps
-    │   ├── dataset.py               # metadata, speaker split, feature extraction
-    │   ├── model.py                 # wav2vec2 classifier builder
-    │   ├── train.py                 # 3-stage HF Trainer pipeline
-    │   ├── trainer.py               # class-weighted loss + discriminative LRs
-    │   ├── evaluate.py              # test metrics + confusion matrix
-    │   └── utils.py
-    ├── app/gradio_app.py            # mic/upload demo
-    ├── notebooks/Training.ipynb     # documented pipeline notebook
-    └── outputs/                     # models + evaluation artifacts (runtime)
-```
-
----
-
-## Where everything is stored
-
-### Dataset
-
-| What | Path |
-|------|------|
-| Audio files | `/sensei-fs-3/users/vkhazanchi/reranker-diksha/personal/ser/RAVDESS_DATA/ravdess/` |
-| Metadata (use this) | `.../RAVDESS_DATA/metadata_local.csv` |
-| Old Colab metadata | `.../RAVDESS_DATA/metadata.csv` (do not use) |
-
-`metadata_local.csv` columns: `path`, `emotion`, `actor` — built automatically by
-`scripts/prepare_data.py` from RAVDESS filenames.
-
-### Trained models
-
-All checkpoints live under:
-
-```
-ser_wav2vec2_ravdess/outputs/
-```
-
-| Folder | Status | Test accuracy | Notes |
-|--------|--------|---------------|-------|
-| **`wav2vec2-ser-ravdess-optimized/`** | **Best finished** | **68.3%** | wav2vec2-base, 25 epochs, class weights + augmentation |
-| `wav2vec2-ser-ravdess/` | Complete | 53.9% | First fixed 10-epoch baseline |
-| `wav2vec2-ser-ravdess-v3/` | Partial | — | wav2vec2-large, 3-stage; stopped mid-run |
-
-Each finished model folder contains:
-
-```
-model.safetensors          # fine-tuned weights
-config.json                # model config (8 labels)
-preprocessor_config.json   # feature extractor settings
-training_args.bin          # HF TrainingArguments snapshot
-checkpoint-*/              # intermediate epoch checkpoints
-```
-
-### Evaluation artifacts
-
-Written to `outputs/` (overwritten on each evaluate run):
-
-| File | Contents |
-|------|----------|
-| `classification_report.txt` | per-class precision/recall/F1 |
-| `confusion_matrix.png` | heatmap plot |
-
-### Training logs
-
-| Log file | Run |
-|----------|-----|
-| `training.log` | current single-GPU run (`run_train.sh`) |
-| `training_optimized.log` | 68.3% optimized run |
-| `training_v3_multigpu.log` | partial large-model multi-GPU run |
-| `training_fixed.log` / `training_full.log` | early debugging runs |
-
-### Hugging Face cache (pretrained weights only)
-
-Downloaded base models (`facebook/wav2vec2-base-960h`, `facebook/wav2vec2-large-960h`)
-are cached under `~/.cache/huggingface/hub/`. Fine-tuned SER weights are **only** in
-`outputs/`.
-
----
-
-## How to access / load models
-
-### Gradio demo
-
-```bash
-# Default: loads outputs/wav2vec2-ser-ravdess-optimized
-/opt/conda/bin/python app/gradio_app.py
-
-# Override model path
-SER_MODEL_DIR=outputs/wav2vec2-ser-ravdess-optimized /opt/conda/bin/python app/gradio_app.py
-```
-
-Opens a local web UI for mic recording or file upload.
-
-### Python inference
+| Model | URL | Accuracy |
+|-------|-----|----------|
+| **Best — optimized** | https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized | **68.3%** |
 
 ```python
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
 
-model_dir = "outputs/wav2vec2-ser-ravdess-optimized"
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_dir)
+model_dir = "sbh013/wav2vec2-ser-ravdess-optimized"
 model = Wav2Vec2ForSequenceClassification.from_pretrained(model_dir)
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_dir)
 ```
 
-### Evaluate a saved checkpoint
+### Local checkpoints (on training server)
+
+| Folder | Backbone | Epochs | Test acc | Notes |
+|--------|----------|--------|----------|-------|
+| `outputs/wav2vec2-ser-ravdess-optimized/` | wav2vec2-**base** | 25 | **68.3%** | **Best — uploaded to HF** |
+| `outputs/wav2vec2-ser-ravdess/` | wav2vec2-base | 10 | 53.9% | First fixed baseline |
+| `outputs/wav2vec2-ser-ravdess-v3/` | wav2vec2-**large** | 3-stage | TBD | Training in progress |
+
+Each checkpoint folder contains: `model.safetensors`, `config.json`, `preprocessor_config.json`, `checkpoint-*/`.
+
+---
+
+## Best model configuration (68.3%)
+
+From `training_optimized.log`:
+
+```
+Backbone:              facebook/wav2vec2-base-960h
+Training:              Single-stage (full encoder + head)
+Epochs:                25
+LR encoder:            2e-5
+LR head:               5e-5
+Batch size:            8
+Gradient accumulation: 2  (effective batch = 16)
+Optimizer:             AdamW (discriminative LRs)
+LR scheduler:          Cosine, warmup 6%
+Weight decay:          0.01
+Label smoothing:       0.08
+Class weights:         neutral=1.778, others=0.889
+Augmentation:          noise σ=0.008, gain 0.85–1.15, 70% prob, ±800 shift
+Precision:             fp32
+Padding:               Dynamic per-batch
+Frozen:                CNN feature encoder
+Selection metric:      macro-F1 on validation
+Early stopping:        patience 10
+```
+
+### Results
+
+- **Test accuracy:** 68.3%
+- **Macro F1:** 0.676
+- **Best classes:** disgust (F1 0.84), surprised (F1 0.79), calm (F1 0.76)
+- **Weakest class:** sad (F1 0.37) — often confused with calm/neutral
+
+Reports: `reports/classification_report.txt`, `reports/confusion_matrix.png`
+
+---
+
+## Current training (v3 — in progress)
+
+Configured in `src/config.py`, logged to `training.log`:
+
+| Stage | Epochs | LR encoder | LR head | What trains |
+|-------|--------|------------|---------|-------------|
+| 1 — head warmup | 10 | 0 | 1e-4 | Classifier only |
+| 2 — encoder | 40 | 8e-6 | 2e-5 | Transformer + head |
+| 3 — polish | 15 | 3e-6 | 8e-6 | Train+val combined |
+
+```
+Backbone:    facebook/wav2vec2-large-960h
+Seed:        22
+GPU:         1 (CUDA_VISIBLE_DEVICES=0)
+Batch:       4 × 16 grad accum = effective 64
+Output dir:  outputs/wav2vec2-ser-ravdess-v3/
+```
 
 ```bash
-SER_MODEL_DIR=outputs/wav2vec2-ser-ravdess-optimized /opt/conda/bin/python -m src.evaluate
+tail -f training.log          # monitor
+bash run_train.sh               # start/restart
 ```
 
 ---
 
-## Training
+## Data
 
-### Recommended: single GPU
+| Item | Path |
+|------|------|
+| Audio (not in git) | `../RAVDESS_DATA/ravdess/` (1,440 wav, 24 actors) |
+| Metadata | `../RAVDESS_DATA/metadata_local.csv` |
+| Build metadata | `python scripts/prepare_data.py` |
+
+**Split (speaker-independent):** 1,140 train / 120 val / 180 test clips across 19/2/3 actors.
+
+---
+
+## Commands
 
 ```bash
+# Setup
+pip install -r requirements.txt
+
+# Prepare data
+python run_training.py --prepare-only
+
+# Train (1 GPU)
 bash run_train.sh
-# equivalent:
-CUDA_VISIBLE_DEVICES=0 /opt/conda/bin/python run_training.py --skip-prepare
-```
 
-### Prepare metadata only
+# Quick smoke test (3 epochs)
+python run_training.py --skip-prepare --epochs 3 --single-stage
 
-```bash
-/opt/conda/bin/python run_training.py --prepare-only
-```
+# Evaluate
+SER_MODEL_DIR=outputs/wav2vec2-ser-ravdess-optimized python -m src.evaluate
 
-### Quick smoke test (3 epochs, single stage)
-
-```bash
-/opt/conda/bin/python run_training.py --skip-prepare --epochs 3 --single-stage
-```
-
-### Optional: multi-GPU (not default on this machine)
-
-```bash
-bash run_multigpu.sh
-```
-
-### What training does
-
-1. Load `metadata_local.csv` and split **by actor** (speaker-independent).
-2. Decode audio to 16 kHz mono.
-3. Extract wav2vec2 features with **dynamic padding** (per-batch).
-4. Three-stage fine-tune:
-   - **Stage 1** — classifier head warmup (encoder frozen), 10 epochs
-   - **Stage 2** — full transformer fine-tune (CNN still frozen), 40 epochs
-   - **Stage 3** — train+val polish at low LR, 15 epochs
-5. Evaluate on held-out test actors; save confusion matrix + report.
-6. Save final model to `outputs/wav2vec2-ser-ravdess-v3/` (current config).
-
----
-
-## Configuration (`src/config.py`)
-
-| Setting | Current value | Meaning |
-|---------|---------------|---------|
-| `SEED` | `22` | reproducibility |
-| `MODEL_CHECKPOINT` | `facebook/wav2vec2-large-960h` | pretrained backbone |
-| `MODEL_DIR` | `outputs/wav2vec2-ser-ravdess-v3` | where new runs save |
-| `BATCH_SIZE` | `4` | per-GPU batch |
-| `GRAD_ACCUM_STEPS` | `16` | effective batch = 4×16 = **64** on 1 GPU |
-| `USE_CLASS_WEIGHTS` | `True` | upweight rare `neutral` class |
-| `USE_TRAIN_AUGMENTATION` | `True` | noise/gain/shift on training batches |
-
-Override paths with environment variables:
-
-```bash
-export SER_DATA_ROOT=/path/to/RAVDESS_DATA
-export SER_METADATA_CSV=/path/to/metadata_local.csv
-export SER_OUTPUT_DIR=/path/to/outputs
-export SER_MODEL_DIR=/path/to/saved/model   # for Gradio / evaluate
+# Gradio demo
+SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 ```
 
 ---
 
-## Understanding training loss
+## Source files
 
-For 8-class cross-entropy, a random untrained model should show:
-
-| Metric | Expected at start |
-|--------|-------------------|
-| `loss` (training) | **~2.08** (= ln 8) |
-| `eval_loss` | **~2.08** |
-
-If you see `loss ≈ 4` at the start, that was a **logging artifact** from gradient
-accumulation with a custom loss function (fixed in `src/trainer.py`). The model was
-still learning — check `eval_accuracy` and `eval_f1_macro` instead.
-
-**Do not use** `training_full.log` — that was an early broken run with NaN gradients.
+| File | Role |
+|------|------|
+| `src/config.py` | All hyperparameters and paths |
+| `src/dataset.py` | Metadata load, actor split, feature extraction |
+| `src/model.py` | Wav2Vec2 classifier builder, stage freezing |
+| `src/train.py` | 3-stage HF Trainer pipeline |
+| `src/trainer.py` | Class-weighted loss, discriminative AdamW |
+| `src/evaluate.py` | Test metrics + confusion matrix |
+| `scripts/prepare_data.py` | Scan wav tree → metadata_local.csv |
+| `app/gradio_app.py` | Web demo |
 
 ---
 
 ## Key design choices
 
-- **Speaker-independent split** — actors (not clips) go to train/val/test.
-- **Frozen CNN feature encoder** — standard for small audio datasets.
-- **Dynamic padding** — variable-length batches (not fixed 5 s padding).
-- **fp32 training** — fp16 caused NaN loss with wav2vec2 on this setup.
-- **Macro-F1 for checkpoint selection** — treats all emotions equally.
-- **Class weights** — `neutral` has half the samples of other emotions in RAVDESS.
+- **Speaker-independent split** — actors assigned to train/val/test, not clips
+- **Dynamic padding** — variable-length batches (not fixed 5 s)
+- **fp32 training** — fp16 caused NaN gradients with wav2vec2
+- **Class weights** — upweight rare `neutral` class (half the samples)
+- **Macro-F1 checkpoint selection** — treats all emotions equally
+- **Train loss ~2.08 at start** — if you see ~4, that was a logging bug (now fixed in `trainer.py`)
 
 ---
 
-## Results so far
+## Training progression
 
-| Run | Model | Test accuracy |
-|-----|-------|---------------|
-| Baseline (fixed) | wav2vec2-base, 10 ep | 53.9% |
-| **Optimized** | wav2vec2-base, 25 ep | **68.3%** |
-| v3 (partial) | wav2vec2-large, 3-stage | incomplete |
-
-Best per-class F1 from optimized run: `disgust` 0.84, `surprised` 0.79, `calm` 0.76.
-Weakest: `sad` 0.37 (often confused with `calm` / `neutral`).
+| Run | Config | Test acc |
+|-----|--------|----------|
+| Broken | base, bad padding/fp16 | ~13% |
+| Fixed baseline | base, 10 ep | 53.9% |
+| **Optimized** | base, 25 ep, weights+aug | **68.3%** |
+| v3 (running) | large, 3-stage, seed 22 | TBD |
 
 ---
 
-## Setup (fresh environment)
+## Environment variables
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+export SER_DATA_ROOT=../RAVDESS_DATA
+export SER_METADATA_CSV=../RAVDESS_DATA/metadata_local.csv
+export SER_OUTPUT_DIR=outputs
+export SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized
 ```
-
-Tested with `transformers>=4.41`. On this server, use `/opt/conda/bin/python` directly.
-
----
-
-## License / attribution
-
-- Model: [facebook/wav2vec2-base-960h](https://huggingface.co/facebook/wav2vec2-base-960h) / [large](https://huggingface.co/facebook/wav2vec2-large-960h) (Apache 2.0)
-- Dataset: [RAVDESS](https://zenodo.org/record/1188976) — cite original authors if publishing results
