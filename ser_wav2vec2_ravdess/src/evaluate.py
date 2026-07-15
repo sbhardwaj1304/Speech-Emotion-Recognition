@@ -17,6 +17,11 @@ from . import config
 
 
 def run_evaluation(trainer, test_ds, output_dir: str = config.OUTPUT_DIR):
+    """
+    Run the trained model on the held-out test set and save a classification
+    report + confusion matrix. Returns a dict with the report text, raw
+    confusion matrix, accuracy, and the predictions/labels used to compute them.
+    """
     os.makedirs(output_dir, exist_ok=True)
 
     print("Running inference on the test set...")
@@ -53,6 +58,7 @@ def run_evaluation(trainer, test_ds, output_dir: str = config.OUTPUT_DIR):
 
 
 def plot_confusion_matrix(cm, label_names, output_dir: str) -> str:
+    """Render a confusion matrix heatmap to PNG and return the saved path."""
     plt.figure(figsize=(8, 6))
     sns.heatmap(
         cm,

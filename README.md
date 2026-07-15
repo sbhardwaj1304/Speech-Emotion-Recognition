@@ -9,6 +9,12 @@ train/val/test split, class-weighted loss, data augmentation, and a Gradio demo.
 
 **Emotions (8 classes):** `neutral`, `calm`, `happy`, `sad`, `angry`, `fearful`, `disgust`, `surprised`
 
+## Team
+
+Built by **Sanchit Bhardwaj** ([@sbhardwaj1304](https://github.com/sbhardwaj1304)) — data
+pipeline, training, evaluation — and **Utsav Kumar** ([@Utsavkumar001](https://github.com/Utsavkumar001)) —
+the Gradio demo app (`app/app.py`) shown in the project video.
+
 ---
 
 ## What this repo contains
@@ -204,7 +210,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
 |-----|--------------|--------|----------|--------|
 | **Optimized (best)** | `outputs/wav2vec2-ser-ravdess-optimized/` | [sbh013/wav2vec2-ser-ravdess-optimized](https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized) | **68.3%** | Complete |
 | Baseline | `outputs/wav2vec2-ser-ravdess/` | — | 53.9% | Complete |
-| v3 large | `outputs/wav2vec2-ser-ravdess-v3/` | — | TBD | **Training in progress** |
+| v3 large | `outputs/wav2vec2-ser-ravdess-v3/` | — | 19.4% (failed) | Complete |
 
 ---
 

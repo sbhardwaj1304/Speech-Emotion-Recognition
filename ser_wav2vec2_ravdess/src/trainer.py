@@ -17,6 +17,7 @@ class SERTrainer(Trainer):
     """Trainer tuned for imbalanced 8-way emotion classification."""
 
     def __init__(self, class_weights: Optional[torch.Tensor] = None, **kwargs):
+        """Same as Trainer, plus optional per-class loss weights for imbalance."""
         super().__init__(**kwargs)
         self.class_weights = class_weights
         self.label_smoothing = config.LABEL_SMOOTHING

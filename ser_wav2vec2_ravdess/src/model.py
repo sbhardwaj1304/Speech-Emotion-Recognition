@@ -11,6 +11,11 @@ def build_model(
     model_checkpoint: str = config.MODEL_CHECKPOINT,
     freeze_feature_encoder: bool = True,
 ) -> Wav2Vec2ForSequenceClassification:
+    """
+    Load a pretrained wav2vec2 checkpoint and swap in a fresh classification
+    head sized for our emotion labels. The CNN feature encoder is frozen by
+    default since RAVDESS is too small to fine-tune it without overfitting.
+    """
     model_config = Wav2Vec2Config.from_pretrained(
         model_checkpoint,
         num_labels=config.NUM_LABELS,

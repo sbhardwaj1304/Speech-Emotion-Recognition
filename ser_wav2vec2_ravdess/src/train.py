@@ -39,6 +39,12 @@ class DataCollatorSER:
     def __call__(
         self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
+        """
+        Pad a batch of variable-length input_values to the longest clip in
+        the batch (not a fixed length), and apply waveform augmentation
+        during training only (relies on the Trainer's no_grad() context
+        during eval to skip augmentation at eval time).
+        """
         input_values = [f["input_values"] for f in features]
         labels = [f["label"] for f in features]
 
@@ -72,6 +78,7 @@ def build_training_args(
     output_dir: Optional[str] = None,
     use_early_stopping: bool = True,
 ) -> TrainingArguments:
+    """Build HF TrainingArguments for one training stage (see _run_stage)."""
     config.NUM_EPOCHS = num_epochs
     config.LR_ENCODER = lr_encoder
     config.LR_HEAD = lr_head
@@ -98,7 +105,7 @@ def build_training_args(
         fp16=False,
         bf16=False,
         dataloader_num_workers=2,
-        ddp_find_unused_parameters=False,
+        ddp_find_unused_parameters=True,
         optim="adamw_torch",
         report_to=["none"],
         seed=config.SEED,
@@ -106,6 +113,7 @@ def build_training_args(
 
 
 def prepare_datasets():
+    """Load metadata, split by actor, decode audio, and extract wav2vec2 features."""
     print("Loading metadata...")
     df = load_metadata()
     train_df, val_df, test_df = split_metadata(df)
@@ -145,6 +153,7 @@ def _make_trainer(
     training_args: TrainingArguments,
     use_early_stopping: bool = True,
 ) -> SERTrainer:
+    """Wire up a SERTrainer with the data collator, metrics, and class weights."""
     data_collator = DataCollatorSER(feature_extractor=feature_extractor)
     callbacks = build_callbacks() if use_early_stopping else []
 
@@ -177,6 +186,7 @@ def _run_stage(
     output_subdir: str,
     use_early_stopping: bool = True,
 ) -> SERTrainer:
+    """Train one stage (head warmup, full fine-tune, or polish) and return the trainer."""
     stage_dir = os.path.join(config.MODEL_DIR, output_subdir)
     os.makedirs(stage_dir, exist_ok=True)
 
@@ -203,6 +213,11 @@ def _run_stage(
 
 
 def main(two_stage: bool = True):
+    """
+    Run the full training pipeline: load data, build the model, fine-tune
+    (either in one shot or through the staged head/encoder/polish schedule),
+    and return the trainer plus the held-out test set for evaluation.
+    """
     set_seed(config.SEED)
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
@@ -283,9 +298,13 @@ def main(two_stage: bool = True):
             output_subdir="single-stage",
         )
 
-    print("Evaluating on validation set...")
-    val_metrics = trainer.evaluate(val_ds)
-    print(val_metrics)
+    if two_stage and config.FINAL_FINETUNE_ON_TRAINVAL:
+        print("Skipping validation metrics: stage 3 trained on train+val combined, "
+              "so val_ds is no longer held out and these numbers would be meaningless.")
+    else:
+        print("Evaluating on validation set...")
+        val_metrics = trainer.evaluate(val_ds)
+        print(val_metrics)
 
     print(f"Saving final model to {config.MODEL_DIR}")
     trainer.save_model(config.MODEL_DIR)

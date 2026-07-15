@@ -28,6 +28,7 @@ EMOTION_ALIASES = {
 
 
 def _normalize_emotion(value: str) -> str:
+    """Lowercase/strip an emotion string and map known aliases to canonical labels."""
     label = str(value).strip().lower()
     return EMOTION_ALIASES.get(label, label)
 
@@ -127,6 +128,7 @@ def build_hf_datasets(
     class_label = ClassLabel(names=config.LABELS)
 
     def to_dataset(df: pd.DataFrame) -> Dataset:
+        """Load every row's audio file and pack into a list-of-dicts Dataset."""
         records = []
         for _, row in df.iterrows():
             audio = _load_audio_file(row["path"])
@@ -147,6 +149,7 @@ def build_hf_datasets(
 def get_feature_extractor(
     model_checkpoint: str = config.MODEL_CHECKPOINT,
 ) -> Wav2Vec2FeatureExtractor:
+    """Load the wav2vec2 feature extractor (normalization stats) for the given checkpoint."""
     return Wav2Vec2FeatureExtractor.from_pretrained(model_checkpoint)
 
 
