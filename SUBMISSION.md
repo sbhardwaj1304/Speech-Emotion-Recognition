@@ -7,7 +7,7 @@
 | # | Item | Format | Status | Action |
 |---|------|--------|--------|--------|
 | 1 | Project report | `.pdf` | **TODO** | Write `reports/FINAL_PROJECT_REPORT.md` → export PDF |
-| 2 | Video demo | `.mp4` | **Done** | Utsav recorded — upload to Classroom |
+| 2 | Video demo | `.mp4` | **Done** | Utsav recorded; upload to Classroom |
 | 3 | Codebase + weights | GitHub + HF | **Done** | Submit repo + model links (see below) |
 
 ---

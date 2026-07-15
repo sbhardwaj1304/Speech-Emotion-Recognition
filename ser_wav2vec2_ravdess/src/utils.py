@@ -27,7 +27,7 @@ def set_seed(seed: int = None) -> None:
 def compute_metrics(eval_pred):
     """
     Callback used by transformers.Trainer.
-    eval_pred is a tuple (logits, labels) — Trainer handles the numpy
+    eval_pred is a tuple (logits, labels); Trainer handles the numpy
     conversion for us.
     """
     logits, labels = eval_pred

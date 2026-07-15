@@ -71,7 +71,7 @@ def plot_confusion_matrix(cm, label_names, output_dir: str) -> str:
     )
     plt.xlabel("Predicted label")
     plt.ylabel("True label")
-    plt.title("Confusion Matrix — Speech Emotion Recognition (wav2vec2 + RAVDESS)")
+    plt.title("Confusion Matrix (Speech Emotion Recognition, wav2vec2 + RAVDESS)")
     plt.tight_layout()
 
     save_path = os.path.join(output_dir, "confusion_matrix.png")

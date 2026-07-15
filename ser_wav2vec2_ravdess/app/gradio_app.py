@@ -76,7 +76,7 @@ demo = gr.Interface(
     fn=predict_emotion,
     inputs=gr.Audio(sources=["microphone", "upload"], type="numpy", label="Speak or upload audio"),
     outputs=gr.Label(num_top_classes=8, label="Predicted Emotion"),
-    title="🎙️ Speech Emotion Recognition — wav2vec2 fine-tuned on RAVDESS",
+    title="🎙️ Speech Emotion Recognition (wav2vec2 fine-tuned on RAVDESS)",
     description=(
         "Record yourself speaking (or upload a short .wav clip) and the model "
         "will predict the emotion conveyed: neutral, calm, happy, sad, angry, "

@@ -1,6 +1,6 @@
 # Demo app (Gradio)
 
-This is the web demo shown in our project video — upload or record an audio
+This is the web demo shown in our project video. Upload or record an audio
 clip and it predicts the speaker's emotion with a probability breakdown and
 waveform plot. Built by Utsav, originally in his own repo, now merged in here
 so the whole project lives in one place.
@@ -20,7 +20,7 @@ MODEL_ID=sbh013/wav2vec2-ser-ravdess-optimized python app/app.py
 
 There's also a simpler Gradio app at
 [`ser_wav2vec2_ravdess/app/gradio_app.py`](../ser_wav2vec2_ravdess/app/gradio_app.py)
-that we used during training/evaluation — this one (`app/app.py`) is the one
+that we used during training/evaluation. This one (`app/app.py`) is the one
 in the demo video, with the waveform plot and probability bars.
 
 See [`../README.md`](../README.md) for the rest of the project.

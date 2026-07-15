@@ -1,4 +1,4 @@
-# Speech Emotion Recognition — wav2vec2 + RAVDESS
+# Speech Emotion Recognition (wav2vec2 + RAVDESS)
 
 Fine-tunes Hugging Face **wav2vec2** for **8-class speech emotion recognition** on the
 [RAVDESS](https://zenodo.org/record/1188976) dataset, using a **speaker-independent**
@@ -20,7 +20,7 @@ train/val/test split, class-weighted loss, data augmentation, and a Gradio demo.
 
 | Path | Description |
 |------|-------------|
-| `ser_wav2vec2_ravdess/` | Main project — training pipeline, evaluation, Gradio app |
+| `ser_wav2vec2_ravdess/` | Main project: training pipeline, evaluation, Gradio app |
 | `ser_wav2vec2_ravdess/src/` | Core code (`config`, `dataset`, `model`, `train`, `trainer`, `evaluate`) |
 | `ser_wav2vec2_ravdess/scripts/prepare_data.py` | Builds `metadata_local.csv` from RAVDESS filenames |
 | `ser_wav2vec2_ravdess/app/gradio_app.py` | Interactive mic/upload demo used during development |
@@ -196,7 +196,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
 - Use **clean speech** clips of 1–5 seconds (model was trained on short RAVDESS utterances)
 - Works best on **English speech** (wav2vec2-base-960h is English-pretrained)
 - The model predicts **how the speech sounds emotionally**, not the semantic meaning of words
-- 68.3% accuracy is on held-out RAVDESS speakers — real-world mic quality may differ
+- 68.3% accuracy is on held-out RAVDESS speakers; real-world mic quality may differ
 
 ---
 
@@ -215,7 +215,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
 | **Weight decay** | 0.01 |
 | **Label smoothing** | 0.08 |
 | **Class weights** | Inverse frequency, extra boost on `sad`/`angry` |
-| **Augmentation** | Noise, gain, small time shift — 70% of training batches |
+| **Augmentation** | Noise, gain, small time shift (70% of training batches) |
 | **Precision** | fp32 |
 | **Padding** | Dynamic (per-batch) |
 | **Checkpoint selection** | Best macro-F1 on validation |
@@ -229,7 +229,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
 | Val | 120 | 2 |
 | Test | 180 | 3 |
 
-Actors — not individual clips — are assigned to splits, so the model cannot memorize a speaker's voice.
+Actors, not individual clips, are assigned to splits, so the model cannot memorize a speaker's voice.
 
 ### Per-class results (test set)
 

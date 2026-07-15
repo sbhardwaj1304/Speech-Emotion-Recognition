@@ -1,4 +1,4 @@
-# ser_wav2vec2_ravdess — Technical Documentation
+# ser_wav2vec2_ravdess: Technical Documentation
 
 Speaker-independent speech emotion recognition fine-tuning wav2vec2 on RAVDESS.
 
@@ -11,7 +11,7 @@ Speaker-independent speech emotion recognition fine-tuning wav2vec2 on RAVDESS.
 
 | Model | URL | Accuracy |
 |-------|-----|----------|
-| **Best — optimized** | https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized | **68.3%** |
+| **Best (optimized)** | https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized | **68.3%** |
 
 ```python
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
@@ -125,7 +125,7 @@ Early stopping:        patience 10
 - **Test accuracy:** 68.3%
 - **Macro F1:** 0.676
 - **Best classes:** disgust (F1 0.84), surprised (F1 0.79), calm (F1 0.76)
-- **Weakest class:** sad (F1 0.37) — often confused with fearful/neutral
+- **Weakest class:** sad (F1 0.37), often confused with fearful/neutral
 
 Reports: `reports/classification_report.txt`, `reports/confusion_matrix.png`
 
@@ -184,12 +184,12 @@ SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 
 ## Key design choices
 
-- **Speaker-independent split** — actors assigned to train/val/test, not clips
-- **Dynamic padding** — variable-length batches (not fixed 5 s)
-- **fp32 training** — more numerically stable than fp16 for this model/dataset combination
-- **Frozen CNN feature encoder** — RAVDESS is too small to fine-tune it without overfitting
-- **Class weights** — upweight rare `neutral` class (half the samples) plus `sad`/`angry`
-- **Macro-F1 checkpoint selection** — treats all emotions equally regardless of frequency
+- **Speaker-independent split**: actors assigned to train/val/test, not clips
+- **Dynamic padding**: variable-length batches (not fixed 5 s)
+- **fp32 training**: more numerically stable than fp16 for this model/dataset combination
+- **Frozen CNN feature encoder**: RAVDESS is too small to fine-tune it without overfitting
+- **Class weights**: upweight rare `neutral` class (half the samples) plus `sad`/`angry`
+- **Macro-F1 checkpoint selection**: treats all emotions equally regardless of frequency
 
 ---
 
