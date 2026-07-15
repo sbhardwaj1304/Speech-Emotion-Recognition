@@ -4,16 +4,15 @@ Fine-tunes Hugging Face **wav2vec2** for **8-class speech emotion recognition** 
 [RAVDESS](https://zenodo.org/record/1188976) dataset, using a **speaker-independent**
 train/val/test split, class-weighted loss, data augmentation, and a Gradio demo.
 
-**GitHub:** https://github.com/sbhardwaj1304/Speech-Emotion-Recognition  
+**GitHub:** https://github.com/sbhardwaj1304/Speech-Emotion-Recognition
 **Best model (Hugging Face):** https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized
 
 **Emotions (8 classes):** `neutral`, `calm`, `happy`, `sad`, `angry`, `fearful`, `disgust`, `surprised`
 
 ## Team
 
-Built by **Sanchit Bhardwaj** ([@sbhardwaj1304](https://github.com/sbhardwaj1304)) — data
-pipeline, training, evaluation — and **Utsav Kumar** ([@Utsavkumar001](https://github.com/Utsavkumar001)) —
-the Gradio demo app (`app/app.py`) shown in the project video.
+**Sanchit Bhardwaj** ([@sbhardwaj1304](https://github.com/sbhardwaj1304)) and
+**Utsav Kumar** ([@Utsavkumar001](https://github.com/Utsavkumar001))
 
 ---
 
@@ -24,8 +23,9 @@ the Gradio demo app (`app/app.py`) shown in the project video.
 | `ser_wav2vec2_ravdess/` | Main project — training pipeline, evaluation, Gradio app |
 | `ser_wav2vec2_ravdess/src/` | Core code (`config`, `dataset`, `model`, `train`, `trainer`, `evaluate`) |
 | `ser_wav2vec2_ravdess/scripts/prepare_data.py` | Builds `metadata_local.csv` from RAVDESS filenames |
-| `ser_wav2vec2_ravdess/app/gradio_app.py` | Interactive mic/upload demo |
-| `ser_wav2vec2_ravdess/reports/` | Classification report, confusion matrix, project report |
+| `ser_wav2vec2_ravdess/app/gradio_app.py` | Interactive mic/upload demo used during development |
+| `app/app.py` | Gradio demo shown in the project video (upload → prediction + waveform) |
+| `ser_wav2vec2_ravdess/reports/` | Classification report, confusion matrix |
 | `RAVDESS_DATA/metadata_local.csv` | 1,440 clips with path, emotion, actor |
 | `notebooks/Untitled2_colab_legacy.ipynb` | Original Colab notebook (reference only) |
 
@@ -34,22 +34,19 @@ the Gradio demo app (`app/app.py`) shown in the project video.
 | Asset | Size | Where to get it |
 |-------|------|-----------------|
 | RAVDESS audio | ~350 MB | [Zenodo](https://zenodo.org/record/1188976) → extract to `RAVDESS_DATA/ravdess/` |
-| Local model checkpoints | 0.4–1.2 GB each | Train locally or use [Hugging Face model](https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized) |
+| Local model checkpoints | ~1.2 GB | Train locally or use the [Hugging Face model](https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized) |
 
 ---
 
-## Model weights — where they live
-
-### Best model (use this)
+## Model weights
 
 | | |
 |--|--|
 | **Hugging Face** | https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized |
-| **Local path** | `ser_wav2vec2_ravdess/outputs/wav2vec2-ser-ravdess-optimized/` |
+| **Local path (after training)** | `ser_wav2vec2_ravdess/outputs/wav2vec2-ser-ravdess-optimized/` |
 | **Test accuracy** | **68.3%** (speaker-independent) |
 | **Macro F1** | **0.676** |
 | **Backbone** | `facebook/wav2vec2-base-960h` |
-| **File** | `model.safetensors` (~361 MB) |
 
 ```python
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
@@ -63,7 +60,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("sbh013/wav2vec2-se
 cd ser_wav2vec2_ravdess
 SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 
-# Or local checkpoint
+# Or a local checkpoint after training
 SER_MODEL_DIR=outputs/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 ```
 
@@ -73,8 +70,6 @@ SER_MODEL_DIR=outputs/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 
 You do **not** need the training data or local checkpoints. The model downloads
 automatically from Hugging Face the first time you use it (~361 MB).
-
-**Model page:** https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized
 
 ### 1. Install dependencies
 
@@ -149,13 +144,14 @@ print(f"Predicted: {top_emotion} ({result[top_emotion]:.1%})")
 print(result)
 ```
 
-### 4. Run the Gradio web demo
-
-Record from your microphone or upload a `.wav` file:
+### 4. Run a Gradio web demo
 
 ```bash
+# The demo shown in our project video
+python app/app.py
+
+# Or the simpler demo used during development
 cd ser_wav2vec2_ravdess
-pip install gradio
 SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 ```
 
@@ -190,8 +186,6 @@ pip install huggingface_hub
 huggingface-cli download sbh013/wav2vec2-ser-ravdess-optimized --local-dir ./my-model
 ```
 
-Then load from the local folder:
-
 ```python
 model = Wav2Vec2ForSequenceClassification.from_pretrained("./my-model")
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
@@ -206,36 +200,24 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("./my-model")
 
 ---
 
-| Run | Local folder | HF Hub | Test acc | Status |
-|-----|--------------|--------|----------|--------|
-| **Optimized (best)** | `outputs/wav2vec2-ser-ravdess-optimized/` | [sbh013/wav2vec2-ser-ravdess-optimized](https://huggingface.co/sbh013/wav2vec2-ser-ravdess-optimized) | **68.3%** | Complete |
-| Baseline | `outputs/wav2vec2-ser-ravdess/` | — | 53.9% | Complete |
-| v3 large | `outputs/wav2vec2-ser-ravdess-v3/` | — | 19.4% (failed) | Complete |
-
----
-
-## Best model — full configuration
-
-The optimized run (`training_optimized.log`) that achieved **68.3%** test accuracy:
+## Model configuration
 
 | Setting | Value |
 |---------|-------|
 | **Backbone** | `facebook/wav2vec2-base-960h` |
-| **Training style** | Single-stage full fine-tune |
-| **Epochs** | **25** |
-| **LR (encoder)** | `2e-5` |
-| **LR (head)** | `5e-5` |
-| **Batch size** | 8 per GPU |
-| **Gradient accumulation** | 2 (effective batch = **16**) |
-| **LR scheduler** | Cosine |
-| **Warmup ratio** | 0.06 |
+| **Training style** | Single-stage fine-tune (CNN feature encoder frozen; transformer + head trained) |
+| **Epochs** | 25 |
+| **LR (encoder)** | 2e-5 |
+| **LR (head)** | 5e-5 |
+| **Batch size** | 8 |
+| **Gradient accumulation** | 2 (effective batch = 16) |
+| **LR scheduler** | Cosine, 6% warmup |
 | **Weight decay** | 0.01 |
 | **Label smoothing** | 0.08 |
-| **Class weights** | Yes — `neutral: 1.778`, all others: `0.889` |
-| **Augmentation** | Yes — noise std 0.008, gain 0.85–1.15, 70% prob, ±800 sample shift |
-| **Precision** | fp32 (fp16 caused NaN loss) |
+| **Class weights** | Inverse frequency, extra boost on `sad`/`angry` |
+| **Augmentation** | Noise, gain, small time shift — 70% of training batches |
+| **Precision** | fp32 |
 | **Padding** | Dynamic (per-batch) |
-| **CNN feature encoder** | Frozen |
 | **Checkpoint selection** | Best macro-F1 on validation |
 | **Early stopping patience** | 10 epochs |
 
@@ -249,7 +231,7 @@ The optimized run (`training_optimized.log`) that achieved **68.3%** test accura
 
 Actors — not individual clips — are assigned to splits, so the model cannot memorize a speaker's voice.
 
-### Per-class results (optimized model, test set)
+### Per-class results (test set)
 
 | Emotion | Precision | Recall | F1 |
 |---------|-----------|--------|-----|
@@ -262,40 +244,11 @@ Actors — not individual clips — are assigned to splits, so the model cannot 
 | sad | 0.500 | 0.292 | 0.368 |
 | surprised | 0.724 | 0.875 | **0.793** |
 
-Full report: `ser_wav2vec2_ravdess/reports/classification_report.txt`  
-Confusion matrix: `ser_wav2vec2_ravdess/reports/confusion_matrix.png`
+Full classification report:
+https://github.com/sbhardwaj1304/Speech-Emotion-Recognition/blob/main/ser_wav2vec2_ravdess/reports/classification_report.txt
 
----
-
-## Training history — what we did
-
-| # | Run | What changed | Test accuracy |
-|---|-----|--------------|---------------|
-| 1 | Broken baseline | Fixed-length padding, fp16 → NaN gradients | ~13% (random) |
-| 2 | Fixed baseline | Dynamic padding, fp32, frozen CNN | **53.9%** (10 epochs, base) |
-| 3 | **Optimized** | +25 epochs, class weights, augmentation | **68.3%** (base) |
-| 4 | v3 (running) | wav2vec2-**large**, 3-stage schedule, seed 22, 1 GPU | In progress |
-
-### Bugs fixed along the way
-
-1. **NaN loss / 0 learning** — switched from fixed 5 s padding to dynamic padding; disabled fp16
-2. **Wrong metadata** — `metadata.csv` had Colab Windows paths; replaced with `metadata_local.csv`
-3. **Inflated train loss (~4 instead of ~2)** — fixed gradient-accumulation logging in custom `SERTrainer`
-4. **Multi-GPU DDP crash** — set `ddp_find_unused_parameters=True` for stage transitions
-
-### Current training run (v3)
-
-```
-Model:     facebook/wav2vec2-large-960h
-Schedule:  Stage 1 (10 ep head) → Stage 2 (40 ep encoder) → Stage 3 (15 ep polish)
-GPU:       1× GPU 0
-Batch:     4 × 16 grad accum = effective 64
-Seed:      22
-Log:       ser_wav2vec2_ravdess/training.log
-Output:    ser_wav2vec2_ravdess/outputs/wav2vec2-ser-ravdess-v3/
-```
-
-Monitor: `tail -f ser_wav2vec2_ravdess/training.log`
+Confusion matrix:
+https://github.com/sbhardwaj1304/Speech-Emotion-Recognition/blob/main/ser_wav2vec2_ravdess/reports/confusion_matrix.png
 
 ---
 
@@ -309,7 +262,7 @@ pip install -r requirements.txt
 # 2. Build metadata (or use included metadata_local.csv)
 python run_training.py --prepare-only
 
-# 3. Train on single GPU
+# 3. Train on a single GPU
 bash run_train.sh
 
 # 4. Evaluate
@@ -327,6 +280,9 @@ SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized python app/gradio_app.py
 Speech-Emotion-Recognition/
 ├── README.md                          ← this file
 ├── .gitignore
+├── app/                                ← demo shown in the project video
+│   ├── app.py
+│   └── requirements.txt
 ├── RAVDESS_DATA/
 │   └── metadata_local.csv             ← clip paths + labels (audio not included)
 ├── notebooks/
@@ -343,9 +299,7 @@ Speech-Emotion-Recognition/
     ├── notebooks/Training.ipynb
     ├── reports/                       ← eval results + confusion matrix
     └── outputs/                       ← local checkpoints (not in git)
-        ├── wav2vec2-ser-ravdess-optimized/   ← best (68.3%)
-        ├── wav2vec2-ser-ravdess/            ← baseline (53.9%)
-        └── wav2vec2-ser-ravdess-v3/         ← v3 in progress
+        └── wav2vec2-ser-ravdess-optimized/   ← best model (68.3%)
 ```
 
 ---
@@ -363,5 +317,5 @@ export SER_MODEL_DIR=sbh013/wav2vec2-ser-ravdess-optimized   # or local path
 
 ## License / attribution
 
-- wav2vec2: [facebook/wav2vec2-base-960h](https://huggingface.co/facebook/wav2vec2-base-960h) / [large](https://huggingface.co/facebook/wav2vec2-large-960h) (Apache 2.0)
+- wav2vec2: [facebook/wav2vec2-base-960h](https://huggingface.co/facebook/wav2vec2-base-960h) (Apache 2.0)
 - RAVDESS: [Livingstone & Russo, 2018](https://zenodo.org/record/1188976)

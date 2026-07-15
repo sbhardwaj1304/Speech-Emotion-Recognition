@@ -1,20 +1,19 @@
 """
 End-to-end training script using the official Hugging Face Trainer API.
 
-Supports two-stage fine-tuning:
-  Stage 1 — classifier head warmup (encoder frozen)
-  Stage 2 — full transformer fine-tune (CNN still frozen)
-  Stage 3 — optional polish on train+val combined
+Fine-tunes wav2vec2 in a single pass: the CNN feature encoder stays frozen
+(set in build_model), while the transformer layers and classification head
+train together with discriminative learning rates (encoder gets a lower LR
+than the head).
 """
 
 import os
-import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
+import random
 
 import numpy as np
 import torch
-from datasets import concatenate_datasets
 from transformers import TrainingArguments
 
 from . import config
@@ -25,7 +24,7 @@ from .dataset import (
     preprocess_batch,
     split_metadata,
 )
-from .model import build_model, set_training_stage
+from .model import build_model
 from .trainer import SERTrainer, build_callbacks, compute_class_weights
 from .utils import compute_metrics, set_seed
 
@@ -71,25 +70,15 @@ class DataCollatorSER:
         return batch
 
 
-def build_training_args(
-    num_epochs: int,
-    lr_encoder: float,
-    lr_head: float,
-    output_dir: Optional[str] = None,
-    use_early_stopping: bool = True,
-) -> TrainingArguments:
-    """Build HF TrainingArguments for one training stage (see _run_stage)."""
-    config.NUM_EPOCHS = num_epochs
-    config.LR_ENCODER = lr_encoder
-    config.LR_HEAD = lr_head
-
+def build_training_args(use_early_stopping: bool = True) -> TrainingArguments:
+    """Build HF TrainingArguments from the hyperparameters in config.py."""
     return TrainingArguments(
-        output_dir=output_dir or config.MODEL_DIR,
+        output_dir=config.MODEL_DIR,
         per_device_train_batch_size=config.BATCH_SIZE,
         per_device_eval_batch_size=config.EVAL_BATCH_SIZE,
         gradient_accumulation_steps=config.GRAD_ACCUM_STEPS,
-        num_train_epochs=num_epochs,
-        learning_rate=lr_encoder,
+        num_train_epochs=config.NUM_EPOCHS,
+        learning_rate=config.LR_ENCODER,
         warmup_ratio=config.WARMUP_RATIO,
         weight_decay=config.WEIGHT_DECAY,
         lr_scheduler_type=config.LR_SCHEDULER,
@@ -105,7 +94,7 @@ def build_training_args(
         fp16=False,
         bf16=False,
         dataloader_num_workers=2,
-        ddp_find_unused_parameters=True,
+        ddp_find_unused_parameters=False,
         optim="adamw_torch",
         report_to=["none"],
         seed=config.SEED,
@@ -173,53 +162,18 @@ def _make_trainer(
         return SERTrainer(tokenizer=feature_extractor, **trainer_kwargs)
 
 
-def _run_stage(
-    stage_name: str,
-    model,
-    train_ds,
-    val_ds,
-    feature_extractor,
-    class_weights,
-    num_epochs: int,
-    lr_encoder: float,
-    lr_head: float,
-    output_subdir: str,
-    use_early_stopping: bool = True,
-) -> SERTrainer:
-    """Train one stage (head warmup, full fine-tune, or polish) and return the trainer."""
-    stage_dir = os.path.join(config.MODEL_DIR, output_subdir)
-    os.makedirs(stage_dir, exist_ok=True)
-
-    print(
-        f"\n=== {stage_name} ===\n"
-        f"epochs={num_epochs}, lr_encoder={lr_encoder}, lr_head={lr_head}, "
-        f"batch={config.BATCH_SIZE}x{config.GRAD_ACCUM_STEPS}"
-    )
-
-    args = build_training_args(
-        num_epochs=num_epochs,
-        lr_encoder=lr_encoder,
-        lr_head=lr_head,
-        output_dir=stage_dir,
-        use_early_stopping=use_early_stopping,
-    )
-    trainer = _make_trainer(
-        model, train_ds, val_ds, feature_extractor, class_weights, args, use_early_stopping
-    )
-    trainer.train()
-    if use_early_stopping and trainer.state.best_model_checkpoint:
-        print(f"Best checkpoint for {stage_name}: {trainer.state.best_model_checkpoint}")
-    return trainer
-
-
-def main(two_stage: bool = True):
+def main(num_epochs: Optional[int] = None):
     """
-    Run the full training pipeline: load data, build the model, fine-tune
-    (either in one shot or through the staged head/encoder/polish schedule),
-    and return the trainer plus the held-out test set for evaluation.
+    Run the full training pipeline: load data, build the model, fine-tune,
+    evaluate on validation, and save the final model. Returns the trainer
+    plus the held-out test set for evaluation.
     """
     set_seed(config.SEED)
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+
+    if num_epochs is not None:
+        config.NUM_EPOCHS = num_epochs
+        print(f"Quick mode: NUM_EPOCHS={config.NUM_EPOCHS}")
 
     train_ds, val_ds, test_ds, feature_extractor = prepare_datasets()
 
@@ -235,76 +189,21 @@ def main(two_stage: bool = True):
             {config.LABELS[i]: round(w, 3) for i, w in enumerate(class_weights.tolist())},
         )
 
-    if two_stage:
-        # Stage 1: head warmup
-        set_training_stage(model, "head_only")
-        trainer = _run_stage(
-            "Stage 1 — head warmup",
-            model,
-            train_ds,
-            val_ds,
-            feature_extractor,
-            class_weights,
-            config.STAGE1_EPOCHS,
-            lr_encoder=0.0,
-            lr_head=config.STAGE1_LR_HEAD,
-            output_subdir="stage1-head",
-        )
+    print(
+        f"\n=== Training ===\n"
+        f"epochs={config.NUM_EPOCHS}, lr_encoder={config.LR_ENCODER}, lr_head={config.LR_HEAD}, "
+        f"batch={config.BATCH_SIZE}x{config.GRAD_ACCUM_STEPS}"
+    )
 
-        # Stage 2: unfreeze transformer
-        set_training_stage(model, "full")
-        trainer = _run_stage(
-            "Stage 2 — encoder fine-tune",
-            model,
-            train_ds,
-            val_ds,
-            feature_extractor,
-            class_weights,
-            config.STAGE2_EPOCHS,
-            lr_encoder=config.LR_ENCODER,
-            lr_head=config.LR_HEAD,
-            output_subdir="stage2-full",
-        )
+    args = build_training_args()
+    trainer = _make_trainer(model, train_ds, val_ds, feature_extractor, class_weights, args)
+    trainer.train()
+    if trainer.state.best_model_checkpoint:
+        print(f"Best checkpoint: {trainer.state.best_model_checkpoint}")
 
-        # Stage 3: polish on train+val (more data, low LR)
-        if config.FINAL_FINETUNE_ON_TRAINVAL:
-            combined_train = concatenate_datasets([train_ds, val_ds])
-            set_training_stage(model, "full")
-            trainer = _run_stage(
-                "Stage 3 — train+val polish",
-                model,
-                combined_train,
-                val_ds,
-                feature_extractor,
-                class_weights,
-                config.FINAL_FINETUNE_EPOCHS,
-                lr_encoder=config.FINAL_LR_ENCODER,
-                lr_head=config.FINAL_LR_HEAD,
-                output_subdir="stage3-polish",
-                use_early_stopping=False,
-            )
-    else:
-        set_training_stage(model, "full")
-        trainer = _run_stage(
-            "Single-stage training",
-            model,
-            train_ds,
-            val_ds,
-            feature_extractor,
-            class_weights,
-            config.NUM_EPOCHS,
-            lr_encoder=config.LR_ENCODER,
-            lr_head=config.LR_HEAD,
-            output_subdir="single-stage",
-        )
-
-    if two_stage and config.FINAL_FINETUNE_ON_TRAINVAL:
-        print("Skipping validation metrics: stage 3 trained on train+val combined, "
-              "so val_ds is no longer held out and these numbers would be meaningless.")
-    else:
-        print("Evaluating on validation set...")
-        val_metrics = trainer.evaluate(val_ds)
-        print(val_metrics)
+    print("Evaluating on validation set...")
+    val_metrics = trainer.evaluate(val_ds)
+    print(val_metrics)
 
     print(f"Saving final model to {config.MODEL_DIR}")
     trainer.save_model(config.MODEL_DIR)

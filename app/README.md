@@ -23,4 +23,4 @@ There's also a simpler Gradio app at
 that we used during training/evaluation — this one (`app/app.py`) is the one
 in the demo video, with the waveform plot and probability bars.
 
-See the "Team" section in [`../README.md`](../README.md) for who worked on what.
+See [`../README.md`](../README.md) for the rest of the project.

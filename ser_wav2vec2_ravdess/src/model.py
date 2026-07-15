@@ -39,24 +39,3 @@ def build_model(
         model.wav2vec2.masked_spec_embed.requires_grad_(False)
 
     return model
-
-
-def set_training_stage(model: Wav2Vec2ForSequenceClassification, stage: str) -> None:
-    """
-    stage='head_only'  -> train classifier/projector only (stage 1 warmup)
-    stage='full'       -> also unfreeze wav2vec2 transformer (stage 2+)
-    """
-    model.freeze_feature_encoder()
-
-    if hasattr(model.wav2vec2, "masked_spec_embed"):
-        model.wav2vec2.masked_spec_embed.requires_grad_(False)
-
-    for param in model.wav2vec2.encoder.parameters():
-        param.requires_grad = stage == "full"
-
-    for param in model.classifier.parameters():
-        param.requires_grad = True
-
-    if hasattr(model, "projector") and model.projector is not None:
-        for param in model.projector.parameters():
-            param.requires_grad = True

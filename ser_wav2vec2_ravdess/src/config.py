@@ -16,7 +16,7 @@ DATA_DIR = os.getenv("SER_DATA_DIR", str(DATA_ROOT / "ravdess"))
 METADATA_CSV = os.getenv("SER_METADATA_CSV", str(DATA_ROOT / "metadata_local.csv"))
 
 OUTPUT_DIR = os.getenv("SER_OUTPUT_DIR", str(PROJECT_ROOT / "outputs"))
-MODEL_DIR = os.path.join(OUTPUT_DIR, "wav2vec2-ser-ravdess-v3")
+MODEL_DIR = os.path.join(OUTPUT_DIR, "wav2vec2-ser-ravdess-optimized")
 
 # --------------------------------------------------------------------------
 # Audio
@@ -26,9 +26,9 @@ MAX_DURATION_SECONDS = 5.0
 MAX_LENGTH = int(SAMPLING_RATE * MAX_DURATION_SECONDS)
 
 # --------------------------------------------------------------------------
-# Model — large wav2vec2 for higher capacity
+# Model
 # --------------------------------------------------------------------------
-MODEL_CHECKPOINT = "facebook/wav2vec2-large-960h"
+MODEL_CHECKPOINT = "facebook/wav2vec2-base-960h"
 
 # --------------------------------------------------------------------------
 # Labels
@@ -57,27 +57,16 @@ TEST_SIZE = 0.1
 VAL_SIZE = 0.1
 
 # --------------------------------------------------------------------------
-# Two-stage training (head warmup -> full encoder fine-tune -> train+val polish)
+# Training (single-stage full fine-tune: CNN frozen, transformer + head trained
+# together with discriminative learning rates)
 # --------------------------------------------------------------------------
-STAGE1_EPOCHS = 10
-STAGE1_LR_HEAD = 1e-4
+NUM_EPOCHS = 25
+LR_ENCODER = 2e-5
+LR_HEAD = 5e-5
 
-STAGE2_EPOCHS = 40
-LR_ENCODER = 8e-6
-LR_HEAD = 2e-5
-
-FINAL_FINETUNE_EPOCHS = 15
-FINAL_LR_ENCODER = 3e-6
-FINAL_LR_HEAD = 8e-6
-FINAL_FINETUNE_ON_TRAINVAL = True
-
-# Legacy single-run aliases (used by run_training --epochs override)
-NUM_EPOCHS = STAGE2_EPOCHS
-LEARNING_RATE = LR_ENCODER
-
-BATCH_SIZE = 4
-EVAL_BATCH_SIZE = 4
-GRAD_ACCUM_STEPS = 16         # 1 GPU -> effective batch = 4 * 1 * 16 = 64
+BATCH_SIZE = 8
+EVAL_BATCH_SIZE = 8
+GRAD_ACCUM_STEPS = 2          # effective batch = 8 * 2 = 16
 WARMUP_RATIO = 0.06
 WEIGHT_DECAY = 0.01
 LR_SCHEDULER = "cosine"

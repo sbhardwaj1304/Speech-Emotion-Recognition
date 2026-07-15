@@ -5,7 +5,7 @@ Local entry point for the full SER training pipeline.
 Usage:
     CUDA_VISIBLE_DEVICES=0 python run_training.py --skip-prepare
     bash run_train.sh
-    python run_training.py --epochs 3 --single-stage   # quick smoke test
+    python run_training.py --epochs 3   # quick smoke test
 """
 
 from __future__ import annotations
@@ -36,12 +36,7 @@ def parse_args() -> argparse.Namespace:
         "--epochs",
         type=int,
         default=None,
-        help="Override epochs for a quick single-stage smoke test",
-    )
-    parser.add_argument(
-        "--single-stage",
-        action="store_true",
-        help="Skip two-stage schedule and run one training pass",
+        help="Override the number of epochs for a quick smoke test",
     )
     return parser.parse_args()
 
@@ -57,18 +52,10 @@ def main() -> None:
     if args.prepare_only:
         return
 
-    two_stage = not args.single_stage
-    if args.epochs is not None:
-        from src import config
-
-        config.NUM_EPOCHS = args.epochs
-        two_stage = False
-        print(f"Quick mode: single-stage, NUM_EPOCHS={config.NUM_EPOCHS}")
-
     from src.evaluate import run_evaluation
     from src.train import main as train_main
 
-    trainer, test_ds = train_main(two_stage=two_stage)
+    trainer, test_ds = train_main(num_epochs=args.epochs)
     run_evaluation(trainer, test_ds)
 
 
